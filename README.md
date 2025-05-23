@@ -7,16 +7,28 @@ This project is a mobile-friendly note editor built using the SimpleMDE editor. 
 ## Project Structure
 
 ```
-simplemde
+$ tree .
+.
+├── docker-compose.yml
+├── Dockerfile
+├── files
+│   ├── images
+│   ├── Notes
+│   └── Tasks
+├── package.json
+├── README.md
 ├── src
-│   ├── index.html        # Main HTML document for the note editor
-│   ├── app.js           # JavaScript code for initializing SimpleMDE
-│   ├── styles.css       # CSS styles for a mobile-friendly design
-│   └── upload_image.php  # PHP script for handling image uploads
-├── Dockerfile            # Instructions to build the Docker image
-├── docker-compose.yml    # Configuration for Docker services
-├── package.json          # npm configuration file with dependencies
-└── README.md             # Project documentation
+│   ├── app.js
+│   ├── delete_note.php
+│   ├── index.html
+│   ├── list_notes.php
+│   ├── list_tree.php
+│   ├── load_note.php
+│   ├── rename_note.php
+│   ├── save_note.php
+│   ├── search_notes.php
+│   ├── styles.css
+│   └── upload_image.php
 ```
 
 ## Setup Instructions
