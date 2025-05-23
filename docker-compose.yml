@@ -1,0 +1,13 @@
+services:
+  simplemde:
+    image: php:8.2-apache
+    ports:
+      - "9090:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./files:/var/www/html/files
+    working_dir: /var/www/html
+
+networks:
+  simplemde-network:
+    driver: bridge

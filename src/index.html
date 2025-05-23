@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SimpleMDE Notes</title>
+    <link rel="icon" type="image/svg+xml" href="https://www.svgrepo.com/show/342013/markdown.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Atkinson+Hyperlegible:400,700&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #fdf6e3;
+            color: #586e75;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #editor {
+            flex: 1 1 auto;
+            min-height: 0;
+            background: #fdf6e3;
+            color: #586e75;
+        }
+        .CodeMirror, .editor-preview, .editor-preview-side {
+            min-height: 0 !important;
+            height: calc(100vh - 170px) !important;
+            max-height: none !important;
+            background: #fdf6e3 !important;
+            color: #586e75 !important;
+            border: 1px solid #eee8d5 !important;
+        }
+        .editor-toolbar {
+            z-index: 2;
+            background: #eee8d5 !important;
+            border-bottom: 1px solid #93a1a1 !important;
+        }
+        body, input, select, button, textarea, .CodeMirror, .editor-preview, .editor-preview-side {
+            font-family: 'Atkinson Hyperlegible', Arial, sans-serif !important;
+        }
+        .header-controls {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            background: #eee8d5;
+            z-index: 10;
+            border-bottom: 2px solid #93a1a1;
+        }
+        .header-controls h1 {
+            flex-basis: 100%;
+            margin: 0.5em 0 0.5em 0;
+            font-size: 1.5em;
+            color: #657b83;
+        }
+        .header-controls input#noteName {
+            width: 20em;
+            max-width: 40%;
+            min-width: 10em;
+            height: 1.5em;
+            font-size: 1em;
+            padding: 0.2em 0.8em;
+            background: #fdf6e3;
+            color: #586e75;
+            border: 1px solid #eee8d5;
+            box-sizing: border-box;
+        }
+        .header-controls button {
+            font-size: 2em;
+            padding: 0.5em 1em;
+            height: 2.5em;
+            background: #eee8d5;
+            color: #586e75;
+            border: 1px solid #93a1a1;
+            transition: background 0.2s, color 0.2s;
+        }
+        .header-controls button:hover {
+            background: #b58900;
+            color: #fdf6e3;
+            border-color: #b58900;
+        }
+        /* Modal styles */
+        #fileTreeModal {
+            display: none;
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background: #eee8d5;
+            border: 2px solid #93a1a1;
+            overflow: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 32px #586e7555;
+        }
+        #fileTreeModal button {
+            font-size: 1.2em;
+            margin: 1em;
+        }
+        #fileTree ul {
+            list-style: none;
+            padding-left: 1.2em;
+        }
+        #fileTree li {
+            margin: 0.2em 0;
+        }
+        #fileTree a {
+            color: #268bd2;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        #fileTree a:hover {
+            color: #b58900;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-controls">
+        <h1>SimpleMDE Markdown Editor</h1>
+        <input type="text" id="noteName" placeholder="Note name">
+        <button id="newBtn" title="New" style="font-size:1.2em;">🪄</button>
+        <button id="loadBtn" title="Load" style="font-size:1.2em;">📂</button>
+        <button id="saveBtn" title="Save" style="font-size:1.2em;">💾</button>
+        <button id="renameBtn" title="Rename" style="font-size:1.2em; padding:0.2em 0.5em; vertical-align:middle;">
+            <img src="https://www.svgrepo.com/show/486816/rename.svg" alt="Rename" style="height:1.2em; width:1.2em; vertical-align:middle; margin-bottom:0.1em;"/>
+        </button>
+        <button id="deleteBtn" title="Delete" style="font-size:1.2em;">💣</button>
+        <button id="imageBtn" title="Insert image" style="font-size:1.2em;">🖼️</button>
+        <input type="file" id="imageInput" accept="image/*" style="display:none;">
+        <button id="dateBtn" title="Insert date" style="font-size:1.2em;">📅</button>
+        <button id="printBtn" title="Print as PDF" style="font-size:1.2em;">🖨️</button>
+    </div>
+    <textarea id="editor"></textarea>
+
+    <!-- File tree modal -->
+    <div id="fileTreeModal">
+        <button onclick="document.getElementById('fileTreeModal').style.display='none'">Close</button>
+        <div style="padding:1em;">
+            <input type="text" id="noteSearchInput" placeholder="Search note contents..." style="width: 60%; font-size:1em;">
+            <button id="noteSearchBtn" style="font-size:1em;">Search</button>
+        </div>
+        <div id="fileTree"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/searchcursor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        const simplemde = new SimpleMDE({
+            element: document.getElementById("editor"),
+            autosave: true,
+            toolbar: [
+                "bold", "italic", "heading", "|",
+                "quote", "unordered-list", "ordered-list",
+                "link", "|",
+                "preview", "guide"
+            ]
+        });
+
+        let lastSavedContent = "";
+        window.currentNotePath = null; // Track the current note path
+
+        // File tree loader
+        async function loadFileTree(searchTerm = "") {
+            const url = searchTerm
+                ? `search_notes.php?q=${encodeURIComponent(searchTerm)}`
+                : 'list_tree.php';
+            const res = await fetch(url);
+            const tree = await res.json();
+            document.getElementById('fileTree').innerHTML = renderTree(tree);
+        }
+
+        document.getElementById("loadBtn").onclick = function() {
+            document.getElementById('fileTreeModal').style.display = 'block';
+            loadFileTree();
+        };
+
+        document.getElementById("noteSearchBtn").onclick = function() {
+            const searchTerm = document.getElementById("noteSearchInput").value.trim();
+            loadFileTree(searchTerm);
+        };
+
+        document.getElementById("noteSearchInput").onkeydown = function(e) {
+            if (e.key === "Enter") {
+                document.getElementById("noteSearchBtn").click();
+            }
+        };
+
+        function renderTree(tree) {
+            let html = '<ul>';
+            for (const node of tree) {
+                if (node.type === 'folder') {
+                    html += `<li><strong>${node.name}</strong>${renderTree(node.children)}</li>`;
+                } else {
+                    html += `<li><a href="#" onclick="loadNoteFromPath('${node.path}');return false;">${node.name}</a></li>`;
+                }
+            }
+            html += '</ul>';
+            return html;
+        }
+
+        window.loadNoteFromPath = async function(path) {
+            const res = await fetch(`load_note.php?name=${encodeURIComponent(path.replace(/\.md$/, ''))}`);
+            const data = await res.json();
+            if (data.success) {
+                simplemde.value(data.content);
+                document.getElementById("noteName").value = path.replace(/\.md$/, '');
+                window.currentNotePath = path.replace(/\.md$/, '');
+                lastSavedContent = data.content;
+                document.getElementById('fileTreeModal').style.display = 'none';
+                // Switch to preview mode
+                simplemde.togglePreview();
+                // Ensure preview is active (if already in preview, don't toggle back to edit)
+                if (!simplemde.isPreviewActive()) {
+                    simplemde.togglePreview();
+                }
+            } else {
+                alert(data.error);
+            }
+        };
+
+        document.getElementById("newBtn").onclick = function() {
+            document.getElementById("noteName").value = "";
+            simplemde.value("");
+            lastSavedContent = "";
+            window.currentNotePath = null;
+        };
+
+        document.getElementById("saveBtn").onclick = async function() {
+            let name = document.getElementById("noteName").value.trim();
+            if (!name) {
+                alert("Please enter a note name.");
+                return;
+            }
+            const content = simplemde.value();
+            const res = await fetch("save_note.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Note "${name}" saved!`);
+                lastSavedContent = content;
+                window.currentNotePath = name;
+                // Optionally refresh note list
+            } else {
+                alert(data.error);
+            }
+        };
+
+        document.getElementById("deleteBtn").onclick = async function() {
+            const name = document.getElementById("noteName").value.trim();
+            if (!name) {
+                alert("Please enter the note name to delete.");
+                return;
+            }
+            if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
+            const res = await fetch("delete_note.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Note "${name}" deleted!`);
+                document.getElementById("noteName").value = "";
+                simplemde.value("");
+                lastSavedContent = "";
+                window.currentNotePath = null;
+                // Optionally refresh note list
+            } else {
+                alert(data.error);
+            }
+        };
+
+        document.getElementById("imageBtn").onclick = function() {
+            document.getElementById("imageInput").click();
+        };
+
+        document.getElementById("imageInput").onchange = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("image", file);
+
+            const res = await fetch("upload_image.php", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                const imageMarkdown = `![${file.name}](files/images/${data.filename})`;
+                simplemde.codemirror.replaceSelection(imageMarkdown);
+            } else {
+                alert(data.error || "Image upload failed.");
+            }
+            event.target.value = "";
+        };
+
+        document.getElementById("dateBtn").onclick = function() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}-${mm}-${dd}`;
+            simplemde.codemirror.replaceSelection(dateStr);
+        };
+
+        document.getElementById("printBtn").onclick = function() {
+            const markdown = simplemde.value();
+            const html = marked.parse(markdown);
+
+            const printWindow = window.open('', '', 'width=900,height=700');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print Note</title>
+                    <link href="https://fonts.googleapis.com/css?family=Atkinson+Hyperlegible:400,700&display=swap" rel="stylesheet">
+                    <style>
+                        body {
+                            font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+                            margin: 40px;
+                            color: #222;
+                            background: #fff;
+                        }
+                        h1, h2, h3, h4, h5, h6 {
+                            font-weight: bold;
+                            margin-top: 1.5em;
+                        }
+                        pre, code {
+                            background: #f4f4f4;
+                            border-radius: 4px;
+                            padding: 2px 6px;
+                            font-size: 1em;
+                        }
+                        img {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>${document.getElementById("noteName").value || "Untitled Note"}</h1>
+                    ${html}
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        };
+
+        document.getElementById("renameBtn").onclick = async function() {
+            const oldName = window.currentNotePath;
+            const newName = document.getElementById("noteName").value.trim();
+            if (!oldName) {
+                alert("No note is currently loaded to rename.");
+                return;
+            }
+            if (!newName) {
+                alert("Please enter the new note name.");
+                return;
+            }
+            if (oldName === newName) {
+                alert("The new name is the same as the current name.");
+                return;
+            }
+            if (!confirm(`Rename "${oldName}" to "${newName}"?`)) return;
+            const res = await fetch("rename_note.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ oldName, newName })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Note renamed to "${newName}"!`);
+                document.getElementById("noteName").value = newName;
+                window.currentNotePath = newName;
+                // Optionally refresh note list
+            } else {
+                alert(data.error);
+            }
+        };
+    </script>
+</body>
+</html>
