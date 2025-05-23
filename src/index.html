@@ -154,7 +154,11 @@
     <script>
         const simplemde = new SimpleMDE({
             element: document.getElementById("editor"),
-            autosave: true,
+            autosave: {
+                enabled: false,
+                uniqueId: "DennisFaucher",
+                delay: 300000 // 5 minutes in milliseconds
+            },
             toolbar: [
                 "bold", "italic", "heading", "|",
                 "quote", "unordered-list", "ordered-list",
@@ -220,16 +224,38 @@
                 if (!simplemde.isPreviewActive()) {
                     simplemde.togglePreview();
                 }
+                updateSaveButtonState(); // Update after loading
             } else {
                 alert(data.error);
             }
         };
+
+        // Reference to the save button
+        const saveBtn = document.getElementById("saveBtn");
+
+        // Function to update save button appearance
+        function updateSaveButtonState() {
+            const content = simplemde.value();
+            if (content === lastSavedContent) {
+                // No unsaved changes: dim the icon
+                saveBtn.style.opacity = "0.4";
+                saveBtn.style.pointerEvents = "none";
+            } else {
+                // Unsaved changes: regular icon
+                saveBtn.style.opacity = "1";
+                saveBtn.style.pointerEvents = "auto";
+            }
+        }
+
+        // Update button state on editor changes
+        simplemde.codemirror.on("change", updateSaveButtonState);
 
         document.getElementById("newBtn").onclick = function() {
             document.getElementById("noteName").value = "";
             simplemde.value("");
             lastSavedContent = "";
             window.currentNotePath = null;
+            updateSaveButtonState(); // Update after new note
         };
 
         document.getElementById("saveBtn").onclick = async function() {
@@ -249,6 +275,7 @@
                 alert(`Note "${name}" saved!`);
                 lastSavedContent = content;
                 window.currentNotePath = name;
+                updateSaveButtonState(); // Update after save
                 // Optionally refresh note list
             } else {
                 alert(data.error);
@@ -390,6 +417,28 @@
                 alert(data.error);
             }
         };
+
+        // Auto-save current note to disk every 5 minutes
+        setInterval(async function() {
+            const name = document.getElementById("noteName").value.trim();
+            if (!name) return; // Don't save if no note name
+            const content = simplemde.value();
+            // Always try to save if there is content
+            const res = await fetch("save_note.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                lastSavedContent = content;
+                window.currentNotePath = name;
+                updateSaveButtonState(); // Update after auto-save
+            }
+        }, 300000); // 5 minutes in milliseconds
+
+        // Initialize button state on page load
+        updateSaveButtonState();
     </script>
 </body>
 </html>
