@@ -1,6 +1,6 @@
 # SimpleMDE Note Editor
 
-This project is a mobile-friendly note editor built using the SimpleMDE editor. It allows users to create, edit, and manage notes with a clean and intuitive interface.
+This project is a mobile-friendly note editor built using the SimpleMDE editor and CoPilot. It allows users to create, edit, and manage notes with a clean and intuitive interface.
 
 ![SimpleMDE Readme](https://github.com/user-attachments/assets/0a2e18d7-d642-44b2-830f-ab205b60fbb4)
 
